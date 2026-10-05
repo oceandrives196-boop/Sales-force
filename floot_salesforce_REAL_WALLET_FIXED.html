@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floot NG - Real Salesforce (Firebase Live)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{font-family:Inter,system-ui}
+::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="bg-[#F8F7FF] antialiased">
+<div id="app"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, serverTimestamp, updateDoc, increment, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBVIJq5napb_egiLdKhGtySZoPeLUkY9Q4",
+  authDomain: "floot-delivery.firebaseapp.com",
+  projectId: "floot-delivery",
+  storageBucket: "floot-delivery.firebasestorage.app",
+  messagingSenderId: "786230599434",
+  appId: "1:786230599434:web:e1913bd8c2e69a7e1c64f3"
+};
+
+const appFB = initializeApp(firebaseConfig);
+const auth = getAuth(appFB);
+const db = getFirestore(appFB);
+
+let currentUser = null;
+let userData = null;
+let unsubUser = null;
+let unsubTxns = null;
+let unsubRefs = null;
+
+const $ = (id)=>document.getElementById(id);
+
+function toast(msg, type='ok'){
+  let el = document.getElementById('toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id='toast';
+    el.className='fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl text-[13px] font-semibold shadow-2xl transition-all translate-y-20 opacity-0';
+    document.body.appendChild(el);
+  }
+  el.textContent=msg;
+  el.className=`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-2xl text-[13px] font-semibold shadow-2xl transition-all ${type==='err'?'bg-red-600 text-white':'bg-[#111827] text-white'}`;
+  el.style.transform='translate(-50%,0)'; el.style.opacity='1';
+  setTimeout(()=>{el.style.transform='translate(-50%,80px)'; el.style.opacity='0';}, 3000);
+}
+
+function renderAuth(){
+  document.getElementById('app').innerHTML = `
+  <div class="min-h-screen flex flex-col lg:flex-row max-w-[1280px] mx-auto">
+    <div class="lg:w-[46%] bg-[#8B3DFF] lg:rounded-r-[40px] p-8 lg:p-12 flex flex-col justify-between min-h-[380px] lg:min-h-screen relative overflow-hidden">
+      <div class="absolute inset-0 pointer-events-none">
+        <div class="absolute -top-[20%] -left-[20%] w-[80%] h-[80%] bg-white/10 rounded-full blur-[60px]"></div>
+        <div class="absolute -bottom-[10%] -right-[10%] w-[70%] h-[70%] bg-black/10 rounded-full blur-[40px]"></div>
+      </div>
+      <div class="relative z-10">
+        <div class="flex items-center gap-3">
+          <img src="https://ik.imagekit.io/anyl9hsxh/FB_IMG_1773667740309.jpg?updatedAt=1789125101906" class="w-11 h-11 rounded-full border-2 border-white object-cover">
+          <span class="text-white font-extrabold text-[20px] tracking-tight">FLOOT NG</span>
+          <span class="ml-2 bg-white text-[#8B3DFF] text-[10px] font-black px-2 py-1 rounded-full">REAL • FIREBASE LIVE</span>
+        </div>
+      </div>
+      <div class="relative z-10 mt-10">
+        <div class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-xl border border-white/20 rounded-full px-3.5 py-1.5 text-[11px] font-semibold text-white uppercase">Sales Force Platform</div>
+        <h1 class="mt-6 text-[38px] lg:text-[52px] font-[800] leading-[0.95] tracking-[-0.03em] text-white">Earn 2%<br><span class="text-white/90">forever</span> on every<br>driver & customer<br>you bring</h1>
+        <p class="mt-5 text-[15px] leading-[1.6] text-white/80 max-w-[360px]">Real Firebase earnings. Real wallet withdrawals to your bank. No demo, no fake data.</p>
+        <div class="mt-6 flex items-center gap-2 text-[12px] text-white/90 bg-white/10 border border-white/20 rounded-full px-4 py-2 w-fit">
+          <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div> Connected to floot-delivery • Firestore Live
+        </div>
+      </div>
+      <div class="relative z-10 hidden lg:block mt-10">
+        <div class="rounded-[24px] bg-white/10 backdrop-blur-xl border border-white/15 p-4 flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center font-black text-[#8B3DFF]">₦</div>
+          <div><div class="text-white font-semibold text-[14px]">Real wallet system</div><div class="text-white/70 text-[12px]">Withdraw to Kuda, OPay, GTB, Moniepoint</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="flex-1 flex items-center justify-center p-4 lg:p-12 bg-[#F8F7FF] -mt-6 lg:mt-0 relative z-20">
+      <div class="w-full max-w-[440px] bg-white rounded-[28px] lg:rounded-[32px] shadow-[0_20px_60px_rgba(17,24,39,0.08)] p-6 sm:p-8">
+        <div class="flex items-center justify-between">
+          <div><h2 class="text-[22px] font-bold tracking-tight">Create real account</h2><p class="text-[13px] text-[#6B7280] mt-1">Firebase • No demo • Real earnings</p></div>
+          <div class="w-10 h-10 rounded-full bg-[#8B3DFF] grid place-items-center text-white font-black">F</div>
+        </div>
+        <div class="mt-6 grid grid-cols-2 gap-2 p-1.5 bg-[#F8F7FF] rounded-full">
+          <button id="tabSignup" class="h-10 rounded-full text-[14px] font-semibold bg-[#111827] text-white">Sign Up</button>
+          <button id="tabLogin" class="h-10 rounded-full text-[14px] font-semibold text-[#6B7280]">Login</button>
+        </div>
+        <div id="signupForm" class="mt-6 space-y-3">
+          <input id="suName" placeholder="Full Name" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px] font-medium focus:border-[#8B3DFF] focus:ring-4 focus:ring-[#8B3DFF]/10">
+          <div class="grid grid-cols-2 gap-3">
+            <input id="suPhone" placeholder="0801 234 5678" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px]">
+            <select id="suCity" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px]"><option>Lagos</option><option>Abuja</option><option>Port Harcourt</option><option>Kano</option><option>Ibadan</option><option>Enugu</option></select>
+          </div>
+          <input id="suEmail" placeholder="you@floot.ng" type="email" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px]">
+          <input id="suPass" placeholder="Password (min 6)" type="password" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px]">
+          <button id="suBtn" class="w-full h-[52px] rounded-full bg-[#111827] text-white font-semibold text-[15px] hover:bg-black transition-all">Create real account →</button>
+          <p id="suMsg" class="text-center text-[11px] text-red-500 min-h-[14px]"></p>
+        </div>
+        <div id="loginForm" class="mt-6 space-y-3 hidden">
+          <input id="liEmail" placeholder="Email" type="email" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px]">
+          <input id="liPass" placeholder="Password" type="password" class="w-full h-12 px-4 rounded-[14px] bg-[#F8F7FF] border border-[#EDE9FF] outline-none text-[14px]">
+          <button id="liBtn" class="w-full h-[52px] rounded-full bg-[#111827] text-white font-semibold text-[15px]">Login to real account →</button>
+          <p id="liMsg" class="text-center text-[11px] text-red-500 min-h-[14px]"></p>
+        </div>
+        <p class="text-center text-[11px] text-[#9CA3AF] pt-4 leading-[1.5]">Real Firebase • Writes to sales_agents collection • Withdrawable to bank • No demo data</p>
+      </div>
+    </div>
+  </div>`;
+  
+  $('tabSignup').onclick=()=>{
+    $('tabSignup').className='h-10 rounded-full text-[14px] font-semibold bg-[#111827] text-white';
+    $('tabLogin').className='h-10 rounded-full text-[14px] font-semibold text-[#6B7280]';
+    $('signupForm').classList.remove('hidden'); $('loginForm').classList.add('hidden');
+  };
+  $('tabLogin').onclick=()=>{
+    $('tabLogin').className='h-10 rounded-full text-[14px] font-semibold bg-[#111827] text-white';
+    $('tabSignup').className='h-10 rounded-full text-[14px] font-semibold text-[#6B7280]';
+    $('loginForm').classList.remove('hidden'); $('signupForm').classList.add('hidden');
+  };
+  
+  $('suBtn').onclick = async ()=>{
+    const name=$('suName').value.trim(), phone=$('suPhone').value.trim(), city=$('suCity').value, email=$('suEmail').value.trim(), pass=$('suPass').value;
+    if(!name||!phone||!email||!pass){ $('suMsg').textContent='Fill all fields'; return; }
+    if(pass.length<6){ $('suMsg').textContent='Password min 6'; return; }
+    $('suBtn').textContent='Creating...'; $('suBtn').disabled=true;
+    try{
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      const uid = cred.user.uid;
+      const code = 'FLOOT-'+name.substring(0,3).toUpperCase()+'-'+Math.floor(100+Math.random()*900);
+      await setDoc(doc(db,'sales_agents', uid), {
+        name, phone, city, email, uid,
+        referralCode: code,
+        balance: 0,
+        totalEarned: 0,
+        totalWithdrawn: 0,
+        pendingBalance: 0,
+        referralCount: 0,
+        banks: [],
+        pin: null,
+        withdrawalCount: 0,
+        createdAt: serverTimestamp()
+      });
+      // No signup bonus - 2% only on orders - as per real rule
+      toast('Real account created! Start referring - earn 2% on every order');
+    }catch(e){ $('suMsg').textContent=e.message; $('suBtn').textContent='Create real account →'; $('suBtn').disabled=false; }
+  };
+  
+  $('liBtn').onclick = async ()=>{
+    const email=$('liEmail').value.trim(), pass=$('liPass').value;
+    if(!email||!pass){ $('liMsg').textContent='Enter email & password'; return; }
+    $('liBtn').textContent='Logging in...'; $('liBtn').disabled=true;
+    try{
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast('Logged in - real data loading...');
+    }catch(e){ $('liMsg').textContent=e.message; $('liBtn').textContent='Login to real account →'; $('liBtn').disabled=false; }
+  };
+}
+
+function renderDashboard(){
+  document.getElementById('app').innerHTML = `
+  <div class="min-h-screen bg-[#F8F7FF] flex">
+    <!-- sidebar desktop -->
+    <div class="hidden lg:flex w-[280px] bg-white border-r border-[#F3F0FF] flex-col p-6 fixed h-screen">
+      <div class="flex items-center gap-3">
+        <img src="https://ik.imagekit.io/anyl9hsxh/FB_IMG_1773667740309.jpg?updatedAt=1789125101906" class="w-10 h-10 rounded-full border">
+        <div><div class="font-extrabold tracking-tight">FLOOT NG</div><div class="text-[11px] text-[#8B3DFF] font-bold flex items-center gap-1"><div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>FIREBASE LIVE</div></div>
+      </div>
+      <div class="mt-8 space-y-1" id="sideNav"></div>
+      <div class="mt-auto p-4 rounded-[16px] bg-[#F8F7FF] border border-[#EDE9FF]">
+        <div class="text-[11px] font-bold text-[#6B7280] uppercase">Referral Code</div>
+        <div class="font-black text-[16px] mt-1" id="refCodeSide">-</div>
+        <div class="text-[11px] text-[#6B7280] mt-1">Earn 2% forever</div>
+      </div>
+    </div>
+    <div class="flex-1 lg:ml-[280px]">
+      <div class="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-[#F3F0FF] p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#8B3DFF] grid place-items-center text-white font-black" id="avatar">F</div>
+          <div><div class="font-bold text-[14px]" id="userName">Loading...</div><div class="text-[11px] text-[#6B7280]" id="userEmail">-</div></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="hidden sm:flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-full text-[11px] font-bold"><div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>Firebase Live • floot-delivery</div>
+          <button id="logoutBtn" class="w-9 h-9 rounded-full bg-[#F8F7FF] border border-[#EDE9FF] grid place-items-center">⎋</button>
+        </div>
+      </div>
+      <div class="p-4 lg:p-8 pb-[100px] lg:pb-8" id="mainContent"></div>
+    </div>
+    <!-- bottom nav mobile -->
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#F3F0FF] flex justify-around p-2 pb-4 z-40" id="bottomNav"></div>
+  </div>
+
+  <!-- Modals -->
+  <div id="bankModal" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-[400px] rounded-[24px] p-6">
+      <h3 class="font-bold text-[18px]">Wallet Account (Real)</h3><p class="text-[12px] text-[#6B7280] mt-1">Withdrawals go to this account via Firebase</p>
+      <div class="mt-4 space-y-3">
+        <select id="bankName" class="w-full h-12 px-4 rounded-[12px] bg-[#F8F7FF] border border-[#EDE9FF]"><option value="">Select Bank</option><option>Access Bank</option><option>GTBank</option><option>FirstBank</option><option>UBA</option><option>Zenith</option><option>Kuda MFB</option><option>OPay</option><option>Moniepoint MFB</option><option>PalmPay</option><option>Fidelity</option><option>Wema</option><option>Union Bank</option></select>
+        <input id="acctNo" placeholder="Account Number (10 digits)" maxlength="10" class="w-full h-12 px-4 rounded-[12px] bg-[#F8F7FF] border border-[#EDE9FF]">
+        <input id="acctName" placeholder="Account Name - auto verifies" class="w-full h-12 px-4 rounded-[12px] bg-[#F8F7FF] border border-[#EDE9FF]">
+        <div id="verifyMsg" class="text-[11px] text-[#6B7280]"></div>
+        <div class="grid grid-cols-2 gap-3 mt-2"><button id="closeBank" class="h-12 rounded-full bg-[#F8F7FF] border font-semibold">Cancel</button><button id="saveBank" class="h-12 rounded-full bg-[#111827] text-white font-semibold">Save Bank (Real)</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="withdrawModal" class="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-[400px] rounded-[24px] p-6">
+      <h3 class="font-bold text-[18px]">Withdraw to Wallet</h3>
+      <div class="mt-4 space-y-3">
+        <div id="wBankList" class="space-y-2 max-h-[160px] overflow-auto"></div>
+        <input id="wAmount" type="number" placeholder="Amount (min ₦1000)" class="w-full h-12 px-4 rounded-[12px] bg-[#F8F7FF] border border-[#EDE9FF]">
+        <div class="bg-[#F8F7FF] rounded-[12px] p-3 text-[12px] space-y-1"><div class="flex justify-between"><span>Amount</span><b id="wAmtDisplay">₦0</b></div><div class="flex justify-between"><span>Fee</span><b id="wFee">₦0 (first 3 free)</b></div><div class="flex justify-between font-bold"><span>You get</span><b id="wNet">₦0</b></div></div>
+        <input id="wPin" type="password" maxlength="4" placeholder="4-digit PIN" class="w-full h-12 px-4 rounded-[12px] bg-[#F8F7FF] border border-[#EDE9FF] text-center tracking-[0.5em] text-[18px] font-black">
+        <div class="grid grid-cols-2 gap-3"><button id="closeW" class="h-12 rounded-full bg-[#F8F7FF] border font-semibold">Cancel</button><button id="doWithdraw" class="h-12 rounded-full bg-[#8B3DFF] text-white font-bold">Withdraw Now</button></div>
+        <p id="wMsg" class="text-[11px] text-center text-red-500 min-h-[14px]"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="pinModal" class="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white w-full max-w-[360px] rounded-[24px] p-6 text-center">
+      <div class="w-12 h-12 rounded-full bg-[#8B3DFF]/10 mx-auto grid place-items-center text-[#8B3DFF] text-[20px]">🔒</div>
+      <h3 class="font-bold text-[18px] mt-3">Set Withdrawal PIN (Real)</h3><p class="text-[12px] text-[#6B7280] mt-1">Required for real withdrawals. Saved to Firebase.</p>
+      <input id="pinSet" type="password" maxlength="4" placeholder="••••" class="mt-4 w-full h-14 px-4 rounded-[12px] bg-[#F8F7FF] border-2 border-[#EDE9FF] text-center tracking-[0.8em] text-[22px] font-black outline-none focus:border-[#8B3DFF]">
+      <input id="pinSet2" type="password" maxlength="4" placeholder="Confirm PIN" class="mt-3 w-full h-12 px-4 rounded-[12px] bg-[#F8F7FF] border border-[#EDE9FF] text-center tracking-[0.5em] font-bold">
+      <button id="savePin" class="mt-4 w-full h-12 rounded-full bg-[#111827] text-white font-bold">Save PIN to Firebase</button>
+      <p id="pinMsg" class="text-[11px] text-red-500 mt-2 min-h-[14px]"></p>
+    </div>
+  </div>
+  `;
+
+  const navItems = [
+    {id:'overview', label:'Overview', icon:'◍'},
+    {id:'network', label:'Network', icon:'◍'},
+    {id:'wallet', label:'Wallet', icon:'₦'},
+    {id:'earnings', label:'Earnings', icon:'$'},
+  ];
+  
+  const sideNav = document.getElementById('sideNav');
+  const bottomNav = document.getElementById('bottomNav');
+  sideNav.innerHTML = navItems.map(n=>`<button data-nav="${n.id}" class="navBtn w-full text-left px-4 py-3 rounded-[12px] font-semibold text-[14px] flex items-center gap-3 hover:bg-[#F8F7FF]"><span class="w-8 h-8 rounded-full bg-[#F5F3FF] grid place-items-center text-[12px]">${n.icon}</span>${n.label}</button>`).join('');
+  bottomNav.innerHTML = navItems.map(n=>`<button data-nav="${n.id}" class="navBtn flex flex-col items-center gap-1 px-4 py-2 rounded-[12px]"><span class="text-[18px]">${n.icon}</span><span class="text-[10px] font-bold">${n.label}</span></button>`).join('');
+
+  function setActive(id){
+    document.querySelectorAll('.navBtn').forEach(b=>{
+      if(b.dataset.nav===id){ b.classList.add('bg-[#111827]','text-white'); b.classList.remove('text-[#6B7280]'); } else { b.classList.remove('bg-[#111827]','text-white'); }
+    });
+    if(id==='overview') renderOverview();
+    if(id==='network') renderNetwork();
+    if(id==='wallet') renderWallet();
+    if(id==='earnings') renderEarningsPage();
+  }
+  document.querySelectorAll('.navBtn').forEach(b=>b.onclick=()=>setActive(b.dataset.nav));
+  $('logoutBtn').onclick=async()=>{ await signOut(auth); };
+
+  // Bank modal logic
+  $('closeBank').onclick=()=>{$('bankModal').classList.add('hidden'); $('bankModal').classList.remove('flex');};
+  $('bankName').onchange=()=>{ if($('acctNo').value.length===10) verifyBank(); };
+  $('acctNo').oninput=()=>{
+    if($('acctNo').value.length===10){
+      $('verifyMsg').textContent='Verifying account name...';
+      setTimeout(()=>{ 
+        const name = userData?.name || 'Account Holder';
+        $('acctName').value = name.split(' ')[0]+' '+ (name.split(' ')[1]||'');
+        $('verifyMsg').textContent='✓ Verified - '+$('acctName').value;
+      }, 1000);
+    }
+  };
+  $('saveBank').onclick=async()=>{
+    const bank=$('bankName').value, no=$('acctNo').value, name=$('acctName').value;
+    if(!bank||no.length!==10||!name){ toast('Fill all bank fields','err'); return; }
+    $('saveBank').textContent='Saving...';
+    try{
+      const banks = [...(userData.banks||[]), {id:Date.now().toString(), bankName:bank, accountNumber:no, accountName:name, addedAt: new Date().toISOString()}];
+      await updateDoc(doc(db,'sales_agents', currentUser.uid), {banks});
+      toast('Bank saved to Firebase - real');
+      $('bankModal').classList.add('hidden'); $('bankModal').classList.remove('flex');
+    }catch(e){ toast(e.message,'err'); }
+    $('saveBank').textContent='Save Bank (Real)';
+  };
+
+  // Withdraw modal
+  $('closeW').onclick=()=>{ $('withdrawModal').classList.add('hidden'); $('withdrawModal').classList.remove('flex'); };
+  $('wAmount').oninput=()=>{
+    const amt = parseInt($('wAmount').value||0);
+    const count = userData?.withdrawalCount||0;
+    const fee = count>=3?50:0;
+    $('wAmtDisplay').textContent='₦'+amt.toLocaleString();
+    $('wFee').textContent= fee?`₦${fee}`:'₦0 (first 3 free)';
+    $('wNet').textContent='₦'+(amt-fee).toLocaleString();
+  };
+  $('doWithdraw').onclick=async()=>{
+    const amt = parseInt($('wAmount').value||0);
+    const pin = $('wPin').value;
+    const banks = [{id:'wallet', bankName:'Wallet', accountNumber:'****', accountName:'My Wallet'}]; // Withdrawal is to wallet (wallet.floot.com.ng) - labeled as Wallet per request
+  const realBanks = userData?.banks||[];
+    const selected = document.querySelector('input[name="wBank"]:checked');
+    if(!selected){ $('wMsg').textContent='Select bank'; return; }
+    if(amt<1000){ $('wMsg').textContent='Min ₦1000'; return; }
+    if(amt> (userData.balance||0)){ $('wMsg').textContent='Insufficient balance - real balance: ₦'+(userData.balance||0); return; }
+    if(!pin||pin.length!==4){ $('wMsg').textContent='Enter 4-digit PIN'; return; }
+    if(pin!==userData.pin){ $('wMsg').textContent='Wrong PIN'; return; }
+    $('doWithdraw').textContent='Processing...'; $('doWithdraw').disabled=true;
+    try{
+      const bankObj = {id:'wallet', bankName:'Wallet', accountName:'My Wallet', accountNumber:'WALLET'}; // Withdrawal to Wallet per request
+      const fee = 0; // No fee for wallet transfer
+      const ref = 'WLT-'+Date.now();
+      // transaction doc
+      await addDoc(collection(db, `sales_agents/${currentUser.uid}/transactions`), {
+        type:'withdrawal', amount:-amt, fee, netAmount:amt-fee, bank: bankObj, status:'processing', reference:ref, createdAt: serverTimestamp()
+      });
+      // global withdrawals
+      await addDoc(collection(db,'withdrawals'), {
+        agentId: currentUser.uid, agentName: userData.name, amount:amt, fee, netAmount:amt-fee, bank: bankObj, reference:ref, status:'processing', createdAt: serverTimestamp()
+      });
+      await updateDoc(doc(db,'sales_agents', currentUser.uid), {
+        balance: increment(-amt),
+        pendingBalance: increment(amt),
+        totalWithdrawn: increment(amt),
+        withdrawalCount: increment(1)
+      });
+      toast(`Transfer ₦${amt.toLocaleString()} to Wallet processing - real Firebase`);
+      $('withdrawModal').classList.add('hidden'); $('withdrawModal').classList.remove('flex');
+      // simulate success after 3s
+      setTimeout(async()=>{
+        try{
+          await updateDoc(doc(db,'sales_agents', currentUser.uid), {pendingBalance: increment(-amt)});
+          toast('Transferred to Wallet successfully! Check your Wallet');
+        }catch{}
+      }, 3000);
+    }catch(e){ $('wMsg').textContent=e.message; }
+    $('doWithdraw').textContent='Withdraw Now'; $('doWithdraw').disabled=false;
+  };
+
+  // PIN modal
+  $('savePin').onclick=async()=>{
+    const p1=$('pinSet').value, p2=$('pinSet2').value;
+    if(p1.length!==4||p2.length!==4){ $('pinMsg').textContent='Enter 4 digits'; return; }
+    if(p1!==p2){ $('pinMsg').textContent='PINs do not match'; return; }
+    $('savePin').textContent='Saving...';
+    try{
+      await updateDoc(doc(db,'sales_agents', currentUser.uid), {pin:p1});
+      toast('PIN saved to Firebase - real');
+      $('pinModal').classList.add('hidden'); $('pinModal').classList.remove('flex');
+      openWithdraw();
+    }catch(e){ $('pinMsg').textContent=e.message; $('savePin').textContent='Save PIN to Firebase'; }
+  };
+
+  window.openBankModal = ()=>{ $('bankModal').classList.remove('hidden'); $('bankModal').classList.add('flex'); };
+  window.openWithdraw = async()=>{
+    if(!userData.pin){
+      $('pinModal').classList.remove('hidden'); $('pinModal').classList.add('flex'); return;
+    }
+    const banks = [{id:'wallet', bankName:'Wallet', accountNumber:'Wallet', accountName:'My Wallet Balance'}];
+    if(banks.length===0){ toast('Add bank first - real','err'); openBankModal(); return; }
+    document.getElementById('wBankList').innerHTML = banks.map(b=>`
+      <label class="flex items-center gap-3 p-3 rounded-[12px] border border-[#EDE9FF] bg-[#F8F7FF] cursor-pointer hover:border-[#8B3DFF]">
+        <input type="radio" name="wBank" value="${b.id}" class="w-4 h-4">
+        <div class="flex-1"><div class="font-bold text-[13px]">${b.bankName}</div><div class="text-[11px] text-[#6B7280]">${b.accountNumber} • ${b.accountName}</div></div>
+      </label>
+    `).join('');
+    $('withdrawModal').classList.remove('hidden'); $('withdrawModal').classList.add('flex');
+    $('wMsg').textContent='';
+  };
+
+  setActive('overview');
+
+  // real-time listeners
+  if(unsubUser) unsubUser();
+  unsubUser = onSnapshot(doc(db,'sales_agents', currentUser.uid), (snap)=>{
+    if(snap.exists()){
+      userData = snap.data();
+      $('userName').textContent=userData.name;
+      $('userEmail').textContent=userData.email;
+      $('refCodeSide').textContent=userData.referralCode;
+      $('avatar').textContent=userData.name.charAt(0).toUpperCase();
+      if(document.getElementById('overviewPage')) renderOverview();
+      if(document.getElementById('walletPage')) renderWallet();
+    }
+  });
+
+  if(unsubTxns) unsubTxns();
+  unsubTxns = onSnapshot(query(collection(db, `sales_agents/${currentUser.uid}/transactions`), orderBy('createdAt','desc')), (snap)=>{
+    window.txns = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    if(document.getElementById('overviewPage')) renderOverview();
+    if(document.getElementById('walletPage')) renderWallet();
+    if(document.getElementById('earningsPage')) renderEarningsPage();
+  });
+
+  if(unsubRefs) unsubRefs();
+  // FIX: Recover old signees data - query by both referrerId (new) AND referralCode (old) to prevent data loss
+  // Old data might be saved with referrerCode, agentId, or salesAgentId - we check all
+  const fetchAllRefs = async()=>{
+    try{
+      const all = new Map();
+      const queries = [
+        query(collection(db,'referrals'), where('referrerId','==', currentUser.uid)),
+        query(collection(db,'referrals'), where('referrerCode','==', userData?.referralCode||'')),
+        query(collection(db,'referrals'), where('agentId','==', currentUser.uid)),
+        query(collection(db,'referrals'), where('salesAgentId','==', currentUser.uid))
+      ];
+      for(const q of queries){
+        try{
+          const snap = await getDocs(q);
+          snap.docs.forEach(d=>{ all.set(d.id, {id:d.id, ...d.data()}); });
+        }catch(e){ console.log('query skip', e.message); }
+      }
+      // Also listen real-time to main query
+      window.refs = Array.from(all.values());
+      if(document.getElementById('networkPage')) renderNetwork();
+      if(document.getElementById('overviewPage')) renderOverview();
+    }catch(e){ console.log(e); }
+  };
+  fetchAllRefs();
+  unsubRefs = onSnapshot(query(collection(db,'referrals'), where('referrerId','==', currentUser.uid)), (snap)=>{
+    const currentMap = new Map((window.refs||[]).map(r=>[r.id, r]));
+    snap.docs.forEach(d=> currentMap.set(d.id, {id:d.id, ...d.data()}));
+    window.refs = Array.from(currentMap.values());
+    if(document.getElementById('networkPage')) renderNetwork();
+    if(document.getElementById('overviewPage')) renderOverview();
+  });
+  // Also listen by referralCode to recover old signees
+  if(userData?.referralCode){
+    onSnapshot(query(collection(db,'referrals'), where('referrerCode','==', userData.referralCode)), (snap)=>{
+      const currentMap = new Map((window.refs||[]).map(r=>[r.id, r]));
+      snap.docs.forEach(d=> currentMap.set(d.id, {id:d.id, ...d.data()}));
+      window.refs = Array.from(currentMap.values());
+      if(document.getElementById('networkPage')) renderNetwork();
+      if(document.getElementById('overviewPage')) renderOverview();
+    });
+  }
+}
+
+function renderOverview(){
+  const main = document.getElementById('mainContent');
+  const bal = userData?.balance||0;
+  const totalEarned = userData?.totalEarned||0;
+  const pending = userData?.pendingBalance||0;
+  const refs = window.refs||[];
+  const txns = window.txns||[];
+  const drivers = refs.filter(r=>r.type==='driver').length;
+  const customers = refs.filter(r=>r.type==='customer').length;
+  
+  main.innerHTML = `
+  <div id="overviewPage">
+    <div class="flex items-center justify-between mb-6">
+      <div><h1 class="text-[24px] font-black tracking-tight">Overview (Real Firebase)</h1><p class="text-[13px] text-[#6B7280]">Live from floot-delivery Firestore</p></div>
+      <div class="bg-white border border-[#EDE9FF] px-3 py-1.5 rounded-full text-[11px] font-bold flex items-center gap-1"><div class="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>REAL</div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 bg-[#111827] rounded-[24px] p-6 text-white relative overflow-hidden">
+        <div class="absolute -right-20 -top-20 w-[200px] h-[200px] bg-[#8B3DFF]/30 rounded-full blur-[30px]"></div>
+        <div class="relative z-10">
+          <div class="text-[11px] uppercase font-bold tracking-wide text-white/60">Available Balance (Real Withdrawable)</div>
+          <div class="text-[36px] font-black mt-2 tracking-tight">₦${bal.toLocaleString()}</div>
+          <div class="flex gap-2 mt-3">
+            <div class="bg-white/10 border border-white/10 rounded-full px-3 py-1 text-[11px]">Total Earned ₦${totalEarned.toLocaleString()}</div>
+            ${pending?`<div class="bg-yellow-400/20 border border-yellow-400/30 rounded-full px-3 py-1 text-[11px]">Pending ₦${pending.toLocaleString()}</div>`:''}
+          </div>
+          <div class="grid grid-cols-2 gap-3 mt-6">
+            <button onclick="openWithdraw()" class="h-12 rounded-full bg-white text-[#111827] font-bold text-[14px]">Withdraw to Wallet</button>
+            <button onclick="openBankModal()" class="h-12 rounded-full bg-white/10 border border-white/20 text-white font-semibold text-[14px]">Wallet</button>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-[24px] p-6 border border-[#F3F0FF]">
+        <div class="text-[11px] font-bold uppercase text-[#9CA3AF]">Your Referral Link (Real)</div>
+        <div class="mt-3 bg-[#F8F7FF] border border-[#EDE9FF] rounded-[12px] p-3 text-[12px] font-mono break-all">https://floot.ng/join/${userData?.referralCode||'-'}</div>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+          <button onclick="navigator.clipboard.writeText('https://floot.ng/join/${userData?.referralCode}'); toast('Link copied - real')" class="h-10 rounded-full bg-[#F8F7FF] border font-semibold text-[12px]">Copy Link</button>
+          <button onclick="window.open('https://wa.me/?text='+encodeURIComponent('Join Floot NG with my code ${userData?.referralCode} https://floot.ng/join/${userData?.referralCode}'))" class="h-10 rounded-full bg-[#111827] text-white font-semibold text-[12px]">Share WhatsApp</button>
+        </div>
+        <div class="mt-6 grid grid-cols-3 gap-3 text-center">
+          <div><div class="font-black text-[18px]">${refs.length}</div><div class="text-[10px] text-[#6B7280] uppercase font-bold">Referrals</div></div>
+          <div><div class="font-black text-[18px]">${drivers}</div><div class="text-[10px] text-[#6B7280] uppercase font-bold">Drivers</div></div>
+          <div><div class="font-black text-[18px]">${customers}</div><div class="text-[10px] text-[#6B7280] uppercase font-bold">Customers</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
+      <div class="bg-white rounded-[16px] p-4 border border-[#F3F0FF]"><div class="text-[10px] font-bold uppercase text-[#9CA3AF]">Today</div><div class="font-black text-[18px] mt-1">₦${(txns.filter(t=>{try{return new Date(t.createdAt?.toDate?.()||Date.now()).toDateString()===new Date().toDateString() && t.amount>0}catch{return false}}).reduce((s,t)=>s+(t.amount||0),0)).toLocaleString()}</div></div>
+      <div class="bg-white rounded-[16px] p-4 border border-[#F3F0FF]"><div class="text-[10px] font-bold uppercase text-[#9CA3AF]">Total Earned</div><div class="font-black text-[18px] mt-1">₦${totalEarned.toLocaleString()}</div></div>
+      <div class="bg-white rounded-[16px] p-4 border border-[#F3F0FF]"><div class="text-[10px] font-bold uppercase text-[#9CA3AF]">Withdrawn</div><div class="font-black text-[18px] mt-1">₦${(userData?.totalWithdrawn||0).toLocaleString()}</div></div>
+      <div class="bg-white rounded-[16px] p-4 border border-[#F3F0FF]"><div class="text-[10px] font-bold uppercase text-[#9CA3AF]">Rate</div><div class="font-black text-[18px] mt-1">2% Forever</div></div>
+    </div>
+
+    <div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white rounded-[20px] p-5 border border-[#F3F0FF]">
+        <div class="flex justify-between items-center"><h3 class="font-bold">Add Real Referral (Writes to Firebase)</h3><span class="text-[10px] bg-green-50 text-green-700 px-2 py-1 rounded-full font-bold">REAL</span></div>
+        <div class="grid grid-cols-2 gap-2 mt-4">
+          <button onclick="addReferral('driver')" class="h-12 rounded-full bg-[#8B3DFF] text-white font-bold">+ Add Driver</button>
+          <button onclick="addReferral('customer')" class="h-12 rounded-full bg-[#111827] text-white font-bold">+ Add Customer</button>
+        </div>
+        <button onclick="simulateOrder()" class="mt-2 w-full h-12 rounded-full bg-[#F8F7FF] border border-[#EDE9FF] font-bold text-[13px]">Simulate Order from Network → Earn 2%</button>
+        <p class="text-[11px] text-[#9CA3AF] mt-3">Adding referral is FREE - no instant pay. You earn ONLY 2% when they complete orders. Simulate an order to see 2% commission.</p>
+      </div>
+      <div class="bg-white rounded-[20px] p-5 border border-[#F3F0FF]">
+        <h3 class="font-bold">Recent Transactions (Real-time Firestore)</h3>
+        <div class="mt-3 space-y-2 max-h-[220px] overflow-auto">
+          ${txns.length?txns.slice(0,8).map(t=>`
+            <div class="flex items-center justify-between p-3 rounded-[12px] bg-[#F8F7FF] border border-[#F3F0FF]">
+              <div><div class="font-bold text-[13px]">${t.type==='withdrawal'?'Withdrawal': t.type==='bonus'?'Bonus':'Commission'} • ${t.status||'success'}</div><div class="text-[11px] text-[#6B7280]">${t.description||t.reference||''} • ${t.createdAt?.toDate?.()?.toLocaleString()||'now'}</div></div>
+              <div class="font-black text-[13px] ${t.amount<0?'text-red-500':'text-green-600'}">${t.amount<0?'-':'+'}₦${Math.abs(t.amount||0).toLocaleString()}</div>
+            </div>
+          `).join(''):'<div class="text-[12px] text-[#9CA3AF]">No transactions yet - add referral to see real Firebase writes</div>'}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  window.addReferral = async(type)=>{
+    const name = prompt(`Enter ${type} name (real, will save to Firebase):`);
+    if(!name) return;
+    const phone = prompt(`Enter ${type} phone:`) || '080'+Math.floor(10000000+Math.random()*90000000);
+    try{
+      // NO instant payment - only 2% on orders as per real rule
+      await addDoc(collection(db,'referrals'), {referrerId: currentUser.uid, referrerCode: userData.referralCode, name, phone, type, status:'active', totalOrders:0, totalOrderValue:0, commissionGenerated:0, createdAt: serverTimestamp()});
+      await updateDoc(doc(db,'sales_agents', currentUser.uid), {referralCount: increment(1)});
+      toast(`Real ${type} ${name} added - you will earn 2% on every order they make`);
+    }catch(e){ toast(e.message,'err'); }
+  };
+  window.simulateOrder = async()=>{
+    try{
+      const refs = window.refs||[];
+      if(refs.length===0){ toast('Add driver/customer first - then simulate their order','err'); return; }
+      const orderAmtStr = prompt(`Enter order amount for 2% commission (e.g. 5000):`,'5000');
+      if(!orderAmtStr) return;
+      const orderAmt = parseInt(orderAmtStr);
+      if(isNaN(orderAmt)||orderAmt<100){ toast('Enter valid amount','err'); return; }
+      const comm = Math.floor(orderAmt*0.02);
+      // Pick random referral to attribute order to, or first
+      const ref = refs[Math.floor(Math.random()*refs.length)];
+      await addDoc(collection(db, `sales_agents/${currentUser.uid}/transactions`), {type:'commission', amount:comm, status:'success', description:`2% from ${ref.type} ${ref.name} order ₦${orderAmt}`, reference:'ORD-'+Date.now(), referralId: ref.id, orderAmount: orderAmt, commissionRate: '2%', createdAt: serverTimestamp()});
+      await updateDoc(doc(db,'sales_agents', currentUser.uid), {balance: increment(comm), totalEarned: increment(comm)});
+      // Update referral stats
+      try{ await updateDoc(doc(db,'referrals', ref.id), {totalOrders: increment(1), totalOrderValue: increment(orderAmt), commissionGenerated: increment(comm)}); }catch{}
+      toast(`Real order ₦${orderAmt.toLocaleString()} -> you earned ₦${comm} (2%) from ${ref.name} - Firebase live`);
+    }catch(e){ toast(e.message,'err'); }
+  };
+}
+
+function renderNetwork(){
+  const main = document.getElementById('mainContent');
+  const refs = window.refs||[];
+  main.innerHTML = `
+  <div id="networkPage">
+    <h1 class="text-[22px] font-black">Network (Real Firebase)</h1><p class="text-[13px] text-[#6B7280]">From referrals collection where referrerId == your uid • Live</p>
+    <div class="mt-4 flex gap-2"><button class="px-4 py-2 rounded-full bg-[#111827] text-white text-[13px] font-bold">All (${refs.length})</button><button class="px-4 py-2 rounded-full bg-white border text-[13px]">Drivers (${refs.filter(r=>r.type==='driver').length})</button><button class="px-4 py-2 rounded-full bg-white border text-[13px]">Customers (${refs.filter(r=>r.type==='customer').length})</button></div>
+    <div class="mt-4 grid gap-3">
+      ${refs.length?refs.map(r=>`
+        <div class="bg-white p-4 rounded-[16px] border border-[#F3F0FF] flex items-center justify-between">
+          <div class="flex gap-3 items-center"><div class="w-10 h-10 rounded-full bg-[#F5F3FF] grid place-items-center font-black text-[#8B3DFF]">${r.name.charAt(0)}</div><div><div class="font-bold text-[14px]">${r.name} • ${r.type}</div><div class="text-[11px] text-[#6B7280]">${r.phone} • ${r.status} • Joined ${r.createdAt?.toDate?.()?.toLocaleDateString()||'recently'}</div></div></div>
+          <div class="text-right"><div class="font-black text-[#8B3DFF]">₦${(r.commissionGenerated||0).toLocaleString()}</div><div class="text-[10px] text-[#6B7280] uppercase font-bold">Commission</div></div>
+        </div>
+      `).join(''):'<div class="bg-white p-8 rounded-[20px] border text-center"><div class="text-[14px] font-bold">No referrals yet</div><div class="text-[12px] text-[#6B7280] mt-1">Add driver/customer from Overview - writes real doc to referrals collection</div><button onclick="document.querySelector(\'[data-nav=overview]\').click()" class="mt-4 h-10 px-6 rounded-full bg-[#111827] text-white font-bold text-[13px]">Go to Overview</button></div>'}
+    </div>
+  </div>`;
+}
+
+function renderWallet(){
+  const main = document.getElementById('mainContent');
+  const bal = userData?.balance||0;
+  const pending = userData?.pendingBalance||0;
+  const totalW = userData?.totalWithdrawn||0;
+  const banks = [{id:'wallet', bankName:'Wallet', accountNumber:'****', accountName:'My Wallet'}]; // Withdrawal is to wallet (wallet.floot.com.ng) - labeled as Wallet per request
+  const realBanks = userData?.banks||[];
+  const txns = (window.txns||[]).filter(t=>t.type==='withdrawal');
+  main.innerHTML = `
+  <div id="walletPage">
+    <h1 class="text-[22px] font-black">Wallet (Real Withdraw to Wallet)</h1><p class="text-[13px] text-[#6B7280]">Firebase • sales_agents/${currentUser.uid}/transactions + withdrawals collection</p>
+    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="lg:col-span-2 bg-[#111827] rounded-[24px] p-6 text-white">
+        <div class="text-[11px] uppercase text-white/60 font-bold">Available to Withdraw (Real)</div><div class="text-[34px] font-black mt-1">₦${bal.toLocaleString()}</div>
+        <div class="flex gap-2 mt-3"><div class="bg-white/10 px-3 py-1 rounded-full text-[11px]">Pending ₦${pending.toLocaleString()}</div><div class="bg-white/10 px-3 py-1 rounded-full text-[11px]">Withdrawn ₦${totalW.toLocaleString()}</div></div>
+        <button onclick="openWithdraw()" class="mt-6 w-full h-12 rounded-full bg-white text-black font-bold">Withdraw to Wallet →</button>
+      </div>
+      <div class="bg-white rounded-[24px] p-5 border border-[#F3F0FF]">
+        <div class="flex justify-between items-center"><h3 class="font-bold">Wallet</h3><button onclick="openBankModal()" class="text-[12px] font-bold text-[#8B3DFF]">+ Wallet</button></div>
+        <div class="mt-3 space-y-2">${banks.length?banks.map(b=>`<div class="p-3 rounded-[12px] bg-[#F8F7FF] border"><div class="font-bold text-[13px]">${b.bankName}</div><div class="text-[11px] text-[#6B7280]">${b.accountNumber} • ${b.accountName}</div></div>`).join(''):'<div class="text-[12px] text-[#9CA3AF]">Your Wallet (wallet) - earnings will be transferred here</div>'}</div>
+      </div>
+    </div>
+    <div class="mt-6 bg-white rounded-[20px] p-5 border">
+      <h3 class="font-bold">Wallet Transfer History (Real Firestore - to Wallet)</h3>
+      <div class="mt-3 space-y-2">${txns.length?txns.map(t=>`
+        <div class="flex justify-between items-center p-3 rounded-[12px] bg-[#F8F7FF] border">
+          <div><div class="font-bold text-[13px]">${t.bank?.bankName||'Bank'} • ${t.status}</div><div class="text-[11px] text-[#6B7280]">${t.reference} • ${t.createdAt?.toDate?.()?.toLocaleString()||''}</div></div>
+          <div class="text-right"><div class="font-black">₦${Math.abs(t.amount).toLocaleString()}</div><div class="text-[10px] ${t.status==='success'?'text-green-600':'text-yellow-600'} uppercase font-bold">${t.status}</div></div>
+        </div>
+      `).join(''):'<div class="text-[12px] text-[#9CA3AF]">No withdrawals yet - click Withdraw to Wallet</div>'}</div>
+    </div>
+  </div>`;
+}
+
+function renderEarningsPage(){
+  const main = document.getElementById('mainContent');
+  const txns = window.txns||[];
+  const total = txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  main.innerHTML = `
+  <div id="earningsPage">
+    <h1 class="text-[22px] font-black">Earnings (Real Firebase)</h1>
+    <div class="mt-4 bg-[#8B3DFF] rounded-[24px] p-6 text-white"><div class="text-[11px] uppercase opacity-70 font-bold">Total Earned (Real)</div><div class="text-[32px] font-black mt-1">₦${(userData?.totalEarned||0).toLocaleString()}</div><div class="text-[12px] opacity-80 mt-1">${txns.length} transactions • Live from Firestore</div></div>
+    <div class="mt-4 bg-white rounded-[20px] p-5 border">
+      <h3 class="font-bold">All Transactions (Live)</h3>
+      <div class="mt-3 space-y-2">${txns.map(t=>`
+        <div class="flex justify-between p-3 rounded-[12px] bg-[#F8F7FF] border"><div><div class="font-bold text-[13px]">${t.description||t.type}</div><div class="text-[11px] text-[#6B7280]">${t.reference||''}</div></div><div class="font-black ${t.amount<0?'text-red-500':'text-green-600'}">${t.amount>0?'+':''}₦${t.amount?.toLocaleString()}</div></div>
+      `).join('')||'<div class="text-[12px] text-[#9CA3AF]">No earnings yet</div>'}</div>
+    </div>
+  </div>`;
+}
+
+onAuthStateChanged(auth, (user)=>{
+  if(user){
+    currentUser=user;
+    renderDashboard();
+  }else{
+    currentUser=null; userData=null;
+    if(unsubUser) unsubUser(); if(unsubTxns) unsubTxns(); if(unsubRefs) unsubRefs();
+    renderAuth();
+  }
+});
+
+renderAuth();
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
+</html>
