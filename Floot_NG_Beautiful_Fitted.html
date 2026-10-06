@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Floot NG - Salesforce - Real</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+*{font-family:Inter,system-ui,-apple-system,sans-serif; box-sizing:border-box}
+h1,h2{font-family:'Plus Jakarta Sans',Inter,sans-serif}
+html,body{width:100%; max-width:100vw; overflow-x:hidden; margin:0; padding:0; background:#F6F5FF}
+::-webkit-scrollbar{display:none}
+.page{display:none} .page.active{display:block; animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:translateY(0)}}
+.glass{backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px)}
+.input-beauty{transition:all .2s; box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.input-beauty:focus{border-color:#7C3AED; box-shadow:0 0 0 4px rgba(124,58,237,.12), 0 1px 2px rgba(0,0,0,.04); background:#fff}
+.btn-primary{background:linear-gradient(135deg,#7C3AED 0%,#5B21B6 100%); box-shadow:0 8px 20px rgba(124,58,237,.3), inset 0 1px 0 rgba(255,255,255,.2); transition:all .2s}
+.btn-primary:hover{transform:translateY(-1px); box-shadow:0 12px 28px rgba(124,58,237,.35), inset 0 1px 0 rgba(255,255,255,.2)}
+.btn-primary:active{transform:translateY(0)}
+.card-hover{transition:all .2s}
+.card-hover:hover{transform:translateY(-2px); box-shadow:0 12px 32px rgba(0,0,0,.08)}
+.nav-pill{transition:all .2s}
+.nav-pill.active-nav{background:#111827; color:#fff; box-shadow:0 4px 12px rgba(0,0,0,.15)}
+</style>
+</head>
+<body class="bg-[#F6F5FF] antialiased min-h-screen w-full">
+<div id="app" class="w-full min-h-screen"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, sendEmailVerification, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, onSnapshot, serverTimestamp, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const coreConfig = {
+  apiKey: "AIzaSyBVIJq5napb_egiLdKhGtySZoPeLUkY9Q4",
+  authDomain: "floot-delivery.firebaseapp.com",
+  projectId: "floot-delivery",
+  storageBucket: "floot-delivery.firebasestorage.app",
+  messagingSenderId: "786230599434",
+  appId: "1:786230599434:web:e1913bd8c2e69a7e1c64f3"
+};
+const appCore = initializeApp(coreConfig);
+const auth = getAuth(appCore);
+const db = getFirestore(appCore);
+
+let currentUser=null, userData=null, unsubUser=null, unsubTxns=null, unsubWallet=null, unsubTeam=null;
+const $ = id=>document.getElementById(id);
+const sanitizeEmail = e=>e.toLowerCase().replace(/[^a-z0-9]/g,'_');
+function toast(msg,type='ok'){
+  let el=document.getElementById('toast');
+  if(!el){ el=document.createElement('div'); el.id='toast'; el.className='fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3.5 rounded-full text-[13px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,.18)] max-w-[92%] text-center transition-all translate-y-20 opacity-0 flex items-center gap-2'; document.body.appendChild(el); }
+  el.innerHTML = (type==='err' ? '⚠️ ' : '✨ ') + msg;
+  el.className=`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-3.5 rounded-full text-[13px] font-semibold shadow-[0_12px_32px_rgba(0,0,0,.18)] max-w-[92%] text-center transition-all flex items-center gap-2 ${type==='err'?'bg-[#111827] text-white border border-red-500/20':'bg-[#111827] text-white'}`;
+  el.style.transform='translate(-50%,0)'; el.style.opacity='1';
+  setTimeout(()=>{el.style.transform='translate(-50%,80px)'; el.style.opacity='0';},3800);
+}
+function switchPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  const target=document.getElementById('page-'+p); if(target) target.classList.add('active');
+  document.querySelectorAll('.navBtn').forEach(b=>{
+    const isActive = b.dataset.page===p;
+    b.className = isActive
+      ? 'navBtn nav-pill active-nav flex items-center gap-2 px-5 py-2.5 rounded-full text-[12px] font-bold whitespace-nowrap'
+      : 'navBtn nav-pill flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-black/[0.06] text-[#6B7280] text-[12px] font-bold hover:border-black/10 hover:text-[#111827] whitespace-nowrap';
+  });
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function openWallet(){ window.open('https://wallet.floot.com.ng','_blank'); }
+
+function renderAuth(){
+  document.getElementById('app').innerHTML=`
+  <div class="min-h-screen w-full flex flex-col lg:flex-row">
+    <!-- Left Branding - fits screen, no overflow -->
+    <div class="lg:w-[48%] w-full bg-[#7C3AED] relative overflow-hidden flex flex-col justify-between min-h-[42vh] lg:min-h-screen p-7 sm:p-10 lg:p-12">
+      <div class="absolute -top-32 -right-32 w-[420px] h-[420px] bg-white/10 rounded-full blur-[60px]"></div>
+      <div class="absolute -bottom-32 -left-32 w-[380px] h-[380px] bg-[#A78BFA]/30 rounded-full blur-[50px]"></div>
+      <div class="relative z-10">
+        <div class="flex items-center gap-3">
+          <img src="https://ik.imagekit.io/anyl9hsxh/FB_IMG_1773667740309.jpg?updatedAt=1789125101906" class="w-11 h-11 rounded-full border-2 border-white/30 object-cover shadow-lg">
+          <span class="text-white font-extrabold text-[19px] tracking-tight">FLOOT NG</span>
+          <span class="ml-1 bg-white text-[#7C3AED] text-[9px] font-black px-2.5 py-1 rounded-full tracking-widest">SALESFORCE</span>
+        </div>
+      </div>
+      <div class="relative z-10 mt-10 lg:mt-0">
+        <h1 class="text-[38px] sm:text-[44px] lg:text-[64px] font-[800] leading-[0.9] tracking-[-0.03em] text-white">Sales<br>force</h1>
+        <p class="mt-5 text-[14px] sm:text-[15px] leading-[1.6] text-white/80 max-w-[360px] font-medium">Independent people who onboard drivers, riders, chefs & customers. Earn <span class="text-white font-bold bg-white/15 px-2 py-0.5 rounded-full">2% forever</span> when they use Floot services.</p>
+        <div class="mt-8 hidden lg:flex items-center gap-3 text-[11px] text-white/70">
+          <div class="flex -space-x-2">
+            <div class="w-7 h-7 rounded-full bg-white/20 border-2 border-[#7C3AED] grid place-items-center text-[12px]">🛵</div>
+            <div class="w-7 h-7 rounded-full bg-white/20 border-2 border-[#7C3AED] grid place-items-center text-[12px]">🍳</div>
+            <div class="w-7 h-7 rounded-full bg-white/20 border-2 border-[#7C3AED] grid place-items-center text-[12px]">🛒</div>
+          </div>
+          <span>Trusted by 500+ agents</span>
+        </div>
+      </div>
+      <div class="relative z-10 hidden lg:block rounded-[16px] bg-white/[0.08] border border-white/10 p-3.5 text-[12px] text-white/80 backdrop-blur">🔒 Email must be verified before you can proceed — check inbox after signup.</div>
+    </div>
+    <!-- Right Form - fits screen -->
+    <div class="flex-1 w-full flex items-center justify-center p-4 sm:p-8 lg:p-10 bg-[#F6F5FF]">
+      <div class="w-full max-w-[420px] bg-white rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,.08),0_1px_3px_rgba(0,0,0,.05)] border border-black/[0.04] p-6 sm:p-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-[24px] font-extrabold tracking-tight">Welcome back</h2>
+            <p class="text-[13px] text-[#6B7280] mt-1 font-medium">Email authentication required</p>
+          </div>
+          <div class="w-10 h-10 rounded-full bg-[#F6F5FF] grid place-items-center text-[18px]">👋</div>
+        </div>
+        <div class="mt-6 grid grid-cols-2 gap-2 p-1.5 bg-[#F6F5FF] rounded-full border border-black/[0.03]">
+          <button id="tabSignup" class="h-10 rounded-full text-[13px] font-bold bg-[#111827] text-white shadow">Sign Up</button>
+          <button id="tabLogin" class="h-10 rounded-full text-[13px] font-bold text-[#6B7280]">Login</button>
+        </div>
+        <div id="signupForm" class="mt-6 space-y-3">
+          <input id="suName" class="input-beauty w-full h-[48px] rounded-full bg-[#F8F7FF] border border-black/[0.06] px-5 text-[14px] outline-none" placeholder="Full name *">
+          <input id="suEmail" class="input-beauty w-full h-[48px] rounded-full bg-[#F8F7FF] border border-black/[0.06] px-5 text-[14px] outline-none" placeholder="Email *" type="email">
+          <input id="suPhone" class="input-beauty w-full h-[48px] rounded-full bg-[#F8F7FF] border border-black/[0.06] px-5 text-[14px] outline-none" placeholder="Phone *">
+          <input id="suPass" class="input-beauty w-full h-[48px] rounded-full bg-[#F8F7FF] border border-black/[0.06] px-5 text-[14px] outline-none" placeholder="Password min 6 *" type="password">
+          <button id="btnSignup" class="btn-primary w-full h-[52px] rounded-full text-white font-bold text-[14px] tracking-wide">CREATE ACCOUNT</button>
+          <div id="suMsg" class="text-[12px] text-center font-semibold min-h-[20px]"></div>
+        </div>
+        <div id="loginForm" class="mt-6 space-y-3 hidden">
+          <input id="liEmail" class="input-beauty w-full h-[48px] rounded-full bg-[#F8F7FF] border border-black/[0.06] px-5 text-[14px] outline-none" placeholder="Email" type="email">
+          <input id="liPass" class="input-beauty w-full h-[48px] rounded-full bg-[#F8F7FF] border border-black/[0.06] px-5 text-[14px] outline-none" placeholder="Password" type="password">
+          <button id="btnLogin" class="w-full h-[52px] rounded-full bg-[#111827] text-white font-bold text-[14px] shadow-lg hover:bg-black transition">LOGIN</button>
+          <button id="btnForgot" class="w-full text-[11px] text-[#7C3AED] font-bold tracking-wide hover:underline">Forgot password?</button>
+          <div id="liMsg" class="text-[12px] text-center font-semibold min-h-[20px]"></div>
+        </div>
+        <div class="mt-6 text-center text-[11px] text-[#9CA3AF]">By continuing you agree to Floot Terms • Secure & encrypted</div>
+      </div>
+    </div>
+  </div>`;
+  $('tabSignup').onclick=()=>{ $('tabSignup').className='h-10 rounded-full text-[13px] font-bold bg-[#111827] text-white shadow'; $('tabLogin').className='h-10 rounded-full text-[13px] font-bold text-[#6B7280]'; $('signupForm').classList.remove('hidden'); $('loginForm').classList.add('hidden'); };
+  $('tabLogin').onclick=()=>{ $('tabLogin').className='h-10 rounded-full text-[13px] font-bold bg-[#111827] text-white shadow'; $('tabSignup').className='h-10 rounded-full text-[13px] font-bold text-[#6B7280]'; $('loginForm').classList.remove('hidden'); $('signupForm').classList.add('hidden'); };
+  $('btnForgot').onclick=async()=>{ const email=$('liEmail').value.trim().toLowerCase(); if(!email){ toast('Enter email','err'); return; } try{ await sendPasswordResetEmail(auth,email); toast('Reset email sent'); }catch(e){ toast(e.code,'err'); } };
+  $('btnSignup').onclick=async()=>{
+    const btn=$('btnSignup'), name=$('suName').value.trim(), email=$('suEmail').value.trim().toLowerCase(), phone=$('suPhone').value.trim(), pass=$('suPass').value.trim();
+    const msg=$('suMsg'); if(!name||!email||!phone||!pass){ msg.textContent='Fill all fields'; msg.className='text-[12px] text-center font-semibold text-red-600'; return; }
+    if(pass.length<6){ msg.textContent='Password min 6'; msg.className='text-[12px] text-center font-semibold text-red-600'; return; }
+    btn.disabled=true; btn.textContent='CREATING...'; msg.textContent='Creating...'; msg.className='text-[12px] text-center font-semibold text-[#6B7280]';
+    try{
+      const cred=await createUserWithEmailAndPassword(auth,email,pass);
+      const uid=cred.user.uid, emailKey=sanitizeEmail(email);
+      await setDoc(doc(db,'users',uid),{ uid, name, email, phone, role:'salesforce', totalEarned:0, createdAt: serverTimestamp(), emailKey, emailVerified:false });
+      await setDoc(doc(db,'salesforce_agents',emailKey),{ uid, name, email, phone, role:'salesforce', totalEarned:0, createdAt: serverTimestamp(), emailKey, id:emailKey, emailVerified:false });
+      await setDoc(doc(db,'wallets',emailKey),{ email, emailKey, uid, balance:0, name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },{merge:true});
+      try{ await sendEmailVerification(cred.user); toast('Verification email sent'); }catch{}
+      msg.textContent='✓ Created. Check email to verify.'; msg.className='text-[12px] text-center font-semibold text-green-600';
+    }catch(e){ msg.textContent=e.code ? `${e.code}: ${e.message.replace('Firebase:','').trim()}` : e.message; msg.className='text-[12px] text-center font-semibold text-red-600'; }
+    finally{ btn.disabled=false; btn.textContent='CREATE ACCOUNT'; }
+  };
+  $('btnLogin').onclick=async()=>{
+    const btn=$('btnLogin'), email=$('liEmail').value.trim().toLowerCase(), pass=$('liPass').value.trim(), msg=$('liMsg');
+    if(!email||!pass){ msg.textContent='Enter email & password'; msg.className='text-[12px] text-center font-semibold text-red-600'; return; }
+    btn.disabled=true; btn.textContent='CHECKING...'; msg.textContent='Checking...'; msg.className='text-[12px] text-center font-semibold text-[#6B7280]';
+    try{
+      const cred=await signInWithEmailAndPassword(auth,email,pass);
+      await cred.user.reload();
+      if(!cred.user.emailVerified){ msg.textContent='Email not verified - check inbox'; msg.className='text-[12px] text-center font-semibold text-amber-600'; try{ await sendEmailVerification(cred.user); }catch{} return; }
+      msg.textContent='✓ Verified';
+    }catch(e){ msg.textContent=e.code ? `${e.code}: ${e.message.replace('Firebase:','').trim()}` : e.message; msg.className='text-[12px] text-center font-semibold text-red-600'; }
+    finally{ btn.disabled=false; btn.textContent='LOGIN'; }
+  };
+}
+
+function renderVerifyRequired(user){
+  document.getElementById('app').innerHTML=`
+  <div class="min-h-screen w-full flex items-center justify-center p-4 bg-[#F6F5FF]">
+    <div class="w-full max-w-[400px] bg-white rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,.08)] border border-black/[0.04] p-8 text-center">
+      <div class="w-16 h-16 rounded-full bg-[#F5F3FF] border border-[#7C3AED]/10 grid place-items-center mx-auto text-[28px]">✉️</div>
+      <h2 class="mt-4 text-[22px] font-extrabold tracking-tight">Verify your email</h2>
+      <p class="mt-2 text-[13px] text-[#6B7280] leading-relaxed">You cannot proceed until email is authenticated. Link sent to <b class="text-[#111827]">${user.email}</b></p>
+      <div class="mt-6 space-y-2">
+        <button id="btnCheckVerified" class="w-full h-12 rounded-full bg-[#111827] text-white font-bold text-[13px] shadow">I HAVE VERIFIED - CONTINUE</button>
+        <button id="btnResend" class="w-full h-12 rounded-full bg-[#F8F7FF] border border-black/[0.06] font-bold text-[13px]">RESEND EMAIL</button>
+        <button id="btnLogout2" class="w-full h-11 rounded-full bg-white border text-[12px] font-bold">Logout</button>
+      </div>
+      <div id="verifyMsg" class="mt-3 text-[12px] font-semibold min-h-[20px]"></div>
+    </div>
+  </div>`;
+  $('btnCheckVerified').onclick=async()=>{
+    $('verifyMsg').textContent='Checking...';
+    try{ await user.reload(); if(user.emailVerified){ try{ await updateDoc(doc(db,'users',user.uid),{ emailVerified:true }); await updateDoc(doc(db,'salesforce_agents',sanitizeEmail(user.email.toLowerCase())),{ emailVerified:true }); }catch{} toast('Verified'); }else{ $('verifyMsg').textContent='Not verified yet'; $('verifyMsg').className='mt-3 text-[12px] font-semibold text-red-600'; } }catch(e){ $('verifyMsg').textContent=e.message; }
+  };
+  $('btnResend').onclick=async()=>{ try{ await sendEmailVerification(user); $('verifyMsg').textContent='✓ Sent again'; toast('Sent'); }catch(e){ $('verifyMsg').textContent=e.message; } };
+  $('btnLogout2').onclick=async()=>{ await signOut(auth); };
+}
+
+function renderDashboard(){
+  document.getElementById('app').innerHTML=`
+  <div class="min-h-screen w-full max-w-[1280px] mx-auto px-3 sm:px-6 lg:px-8 pb-24 pt-4">
+    <!-- Header -->
+    <div class="flex justify-between items-center bg-white/80 glass border border-black/[0.05] rounded-[20px] px-4 sm:px-6 py-4 shadow-[0_4px_20px_rgba(0,0,0,.04)]">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] grid place-items-center text-white font-black shadow-lg">F</div>
+        <div><div class="font-extrabold text-[15px] tracking-tight" id="dashName">Salesforce</div><div class="text-[10px] text-[#6B7280] uppercase font-bold tracking-widest">Real • Earn 2% forever</div></div>
+      </div>
+      <button id="btnLogout" class="h-9 px-4 rounded-full bg-[#F6F5FF] border border-black/[0.06] text-[12px] font-bold hover:bg-[#111827] hover:text-white transition">Logout</button>
+    </div>
+
+    <div class="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+      <button data-page="dashboard" onclick="window._switch('dashboard')" class="navBtn nav-pill active-nav flex items-center gap-2 px-5 py-2.5 rounded-full text-[12px] font-bold whitespace-nowrap">📊<span>Dashboard</span></button>
+      <button data-page="flow" onclick="window._switch('flow')" class="navBtn nav-pill flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-black/[0.06] text-[#6B7280] text-[12px] font-bold whitespace-nowrap">💸<span>Flow</span></button>
+      <button data-page="team" onclick="window._switch('team')" class="navBtn nav-pill flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-black/[0.06] text-[#6B7280] text-[12px] font-bold whitespace-nowrap">👥<span>My Team</span></button>
+      <button data-page="stats" onclick="window._switch('stats')" class="navBtn nav-pill flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-black/[0.06] text-[#6B7280] text-[12px] font-bold whitespace-nowrap">📈<span>Stats</span></button>
+      <button data-page="promote" onclick="window._switch('promote')" class="navBtn nav-pill flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-black/[0.06] text-[#6B7280] text-[12px] font-bold whitespace-nowrap">📣<span>Promo</span></button>
+      <button data-page="profile" onclick="window._switch('profile')" class="navBtn nav-pill flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-black/[0.06] text-[#6B7280] text-[12px] font-bold whitespace-nowrap">👤<span>Profile</span></button>
+    </div>
+
+    <div id="page-dashboard" class="page active">
+      <div class="mt-4 grid lg:grid-cols-[1.4fr_0.6fr] gap-4">
+        <div class="bg-[#111827] rounded-[28px] p-6 sm:p-8 text-white relative overflow-hidden card-hover">
+          <div class="absolute -top-20 -right-20 w-[280px] h-[280px] bg-[#7C3AED] rounded-full blur-[50px] opacity-50"></div>
+          <div class="absolute -bottom-20 -left-20 w-[200px] h-[200px] bg-[#A78BFA] rounded-full blur-[40px] opacity-20"></div>
+          <div class="relative">
+            <div class="flex items-center gap-2"><span class="text-[10px] uppercase tracking-[0.14em] opacity-60 font-bold">Total Earnings</span><span class="text-[9px] bg-white/15 border border-white/10 px-2 py-0.5 rounded-full font-bold">REAL 2%</span></div>
+            <div class="text-[40px] sm:text-[48px] font-black mt-3 tracking-tight" id="totalEarned">₦0</div>
+            <div class="text-[12px] opacity-60 mt-1 max-w-[300px]">Forever 2% from your onboarded team — real trips & orders only.</div>
+            <div class="mt-7 flex flex-wrap gap-2.5">
+              <button id="btnWithdraw" class="btn-primary h-[48px] px-7 rounded-full text-white font-extrabold text-[12px] tracking-wide">WITHDRAW TO REAL WALLET</button>
+              <button onclick="window._openWallet()" class="h-[48px] px-7 rounded-full bg-white text-[#111827] font-bold text-[12px] hover:bg-white/90 transition">WALLET ↗</button>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-[28px] p-5 border border-black/[0.04] shadow-[0_8px_24px_rgba(0,0,0,.04)] card-hover">
+          <h3 class="font-extrabold text-[14px]">Real Wallet</h3>
+          <div class="mt-4 bg-[#F6F5FF] rounded-[20px] p-5 border border-black/[0.04]">
+            <div class="text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">Balance</div>
+            <div class="text-[32px] font-black mt-1 tracking-tight" id="walletBal">₦0</div>
+            <div class="text-[11px] text-[#6B7280] mt-1 truncate" id="walletEmail">-</div>
+            <button onclick="window._openWallet()" class="mt-4 w-full h-11 rounded-full bg-[#111827] text-white font-bold text-[12px] hover:bg-black transition">OPEN WALLET</button>
+          </div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <div class="bg-[#F8F7FF] rounded-[16px] p-3.5 border border-black/[0.03]"><div class="text-[10px] uppercase font-bold text-[#6B7280] tracking-widest">Providers</div><div class="font-black text-[20px] mt-1" id="providerCount">0</div></div>
+            <div class="bg-[#F8F7FF] rounded-[16px] p-3.5 border border-black/[0.03]"><div class="text-[10px] uppercase font-bold text-[#6B7280] tracking-widest">Customers</div><div class="font-black text-[20px] mt-1" id="customerCount">0</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 bg-white rounded-[24px] p-5 border border-black/[0.04] shadow-sm"><h3 class="font-extrabold text-[13px]">Quick Stats (Real)</h3><div class="mt-3 grid grid-cols-3 gap-3"><div class="bg-[#F8F7FF] rounded-[18px] p-4 border border-black/[0.03] text-center"><div class="text-[22px] font-black" id="statTotalTrips">0</div><div class="text-[10px] uppercase text-[#6B7280] font-bold tracking-widest mt-1">Trips/Orders</div></div><div class="bg-[#F8F7FF] rounded-[18px] p-4 border border-black/[0.03] text-center"><div class="text-[22px] font-black" id="statTotalEarn">₦0</div><div class="text-[10px] uppercase text-[#6B7280] font-bold tracking-widest mt-1">Earned</div></div><div class="bg-[#F8F7FF] rounded-[18px] p-4 border border-black/[0.03] text-center"><div class="text-[22px] font-black" id="statTeamSize">0</div><div class="text-[10px] uppercase text-[#6B7280] font-bold tracking-widest mt-1">Team Size</div></div></div></div>
+    </div>
+
+    <div id="page-flow" class="page">
+      <div class="mt-4 bg-white rounded-[24px] p-5 sm:p-6 border border-black/[0.04] shadow-sm">
+        <div class="flex flex-wrap justify-between items-center gap-2"><h3 class="font-extrabold text-[16px]">Real Earning Flow</h3><span class="text-[10px] bg-[#F5F3FF] text-[#7C3AED] border border-[#7C3AED]/10 px-3 py-1 rounded-full font-bold tracking-widest">2% FOREVER • REAL</span></div>
+        <p class="text-[12px] text-[#6B7280] mt-1">Real earnings from your team — e.g. Jake (driver) NGN3,100 → you NGN62</p>
+        <div class="mt-5 space-y-2.5" id="flowList"><div class="text-[12px] text-[#9CA3AF] p-6 bg-[#F8F7FF] border rounded-[16px] text-center">No real earnings yet</div></div>
+      </div>
+    </div>
+
+    <div id="page-team" class="page">
+      <div class="mt-4 grid lg:grid-cols-[1.2fr_0.8fr] gap-4">
+        <div class="bg-white rounded-[24px] p-5 border border-black/[0.04] shadow-sm"><div class="flex justify-between items-center"><h3 class="font-extrabold text-[15px]">My Team (Real)</h3><span class="text-[11px] px-3 py-1 rounded-full bg-[#F5F3FF] border border-[#7C3AED]/10 font-bold" id="teamTotal">0 team</span></div><div class="mt-4 flex gap-2 flex-wrap"><button onclick="filterTeam('all')" class="teamFilter h-8 px-3.5 rounded-full bg-[#111827] text-white text-[11px] font-bold" data-f="all">All</button><button onclick="filterTeam('driver')" class="teamFilter h-8 px-3.5 rounded-full bg-[#F8F7FF] border border-black/[0.06] text-[11px] font-bold" data-f="driver">Drivers</button><button onclick="filterTeam('rider')" class="teamFilter h-8 px-3.5 rounded-full bg-[#F8F7FF] border border-black/[0.06] text-[11px] font-bold" data-f="rider">Riders</button><button onclick="filterTeam('chef')" class="teamFilter h-8 px-3.5 rounded-full bg-[#F8F7FF] border border-black/[0.06] text-[11px] font-bold" data-f="chef">Chefs</button><button onclick="filterTeam('customer')" class="teamFilter h-8 px-3.5 rounded-full bg-[#F8F7FF] border border-black/[0.06] text-[11px] font-bold" data-f="customer">Customers</button></div><div class="mt-4 space-y-2 max-h-[560px] overflow-auto pr-1" id="teamList"><div class="text-[12px] text-[#9CA3AF]">No team yet</div></div></div>
+        <div class="bg-white rounded-[24px] p-5 border border-black/[0.04] shadow-sm h-fit sticky top-4"><h3 class="font-extrabold text-[15px]">Onboard Real Provider</h3><p class="text-[11px] text-[#6B7280] mt-1">No duplicate email/phone allowed across roles</p><div class="mt-5 space-y-2.5"><input id="obName" class="input-beauty w-full h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px] outline-none" placeholder="Full name"><input id="obPhone" class="input-beauty w-full h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px] outline-none" placeholder="Phone"><div class="grid grid-cols-2 gap-2"><select id="obRole" class="h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px] outline-none"><option value="driver">Driver</option><option value="rider">Rider</option><option value="chef">Chef</option><option value="customer">Customer</option></select><input id="obEmail" class="input-beauty w-full h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px] outline-none" placeholder="Email"></div><input id="obExtra" class="input-beauty w-full h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px] outline-none" placeholder="Bike no / Kitchen name"><button id="btnOnboard" class="btn-primary w-full h-12 rounded-full text-white font-bold text-[13px]">ONBOARD REAL PROVIDER</button><div id="obMsg" class="text-[11px] text-center font-semibold min-h-[18px]"></div></div></div>
+      </div>
+    </div>
+
+    <div id="page-stats" class="page">
+      <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="bg-white rounded-[24px] p-6 border border-black/[0.04] shadow-sm card-hover"><div class="text-[10px] uppercase font-bold tracking-widest text-[#6B7280]">Total Team (Real)</div><div class="text-[38px] font-black mt-2 tracking-tight" id="statsTeam">0</div><div class="mt-2 text-[11px] text-[#9CA3AF]">All onboarded providers</div></div>
+        <div class="bg-[#7C3AED] rounded-[24px] p-6 text-white relative overflow-hidden shadow-[0_12px_32px_rgba(124,58,237,.3)] card-hover"><div class="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-xl"></div><div class="text-[10px] uppercase font-bold tracking-widest opacity-80">Total Earned Real (2%)</div><div class="text-[38px] font-black mt-2 tracking-tight" id="statsEarned">₦0</div><div class="mt-2 text-[11px] opacity-70">Forever commission</div></div>
+        <div class="bg-white rounded-[24px] p-6 border border-black/[0.04] shadow-sm card-hover"><div class="text-[10px] uppercase font-bold tracking-widest text-[#6B7280]">Real Orders/Trips</div><div class="text-[38px] font-black mt-2 tracking-tight" id="statsOrders">0</div><div class="mt-2 text-[11px] text-[#9CA3AF]">Completed by team</div></div>
+      </div>
+      <div class="mt-4 bg-white rounded-[24px] p-6 border border-black/[0.04] shadow-sm"><h3 class="font-extrabold text-[14px]">Breakdown</h3><div class="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3"><div class="bg-[#F8F7FF] rounded-[18px] p-5 border border-black/[0.03] text-center"><div class="w-8 h-8 rounded-full bg-white border grid place-items-center mx-auto text-[14px]">🛵</div><div class="text-[10px] uppercase font-bold tracking-widest text-[#6B7280] mt-3">Drivers</div><div class="font-black text-[22px] mt-1" id="bDrivers">0</div></div><div class="bg-[#F8F7FF] rounded-[18px] p-5 border border-black/[0.03] text-center"><div class="w-8 h-8 rounded-full bg-white border grid place-items-center mx-auto text-[14px]">🏍️</div><div class="text-[10px] uppercase font-bold tracking-widest text-[#6B7280] mt-3">Riders</div><div class="font-black text-[22px] mt-1" id="bRiders">0</div></div><div class="bg-[#F8F7FF] rounded-[18px] p-5 border border-black/[0.03] text-center"><div class="w-8 h-8 rounded-full bg-white border grid place-items-center mx-auto text-[14px]">🍳</div><div class="text-[10px] uppercase font-bold tracking-widest text-[#6B7280] mt-3">Chefs</div><div class="font-black text-[22px] mt-1" id="bChefs">0</div></div><div class="bg-[#F8F7FF] rounded-[18px] p-5 border border-black/[0.03] text-center"><div class="w-8 h-8 rounded-full bg-white border grid place-items-center mx-auto text-[14px]">🛒</div><div class="text-[10px] uppercase font-bold tracking-widest text-[#6B7280] mt-3">Customers</div><div class="font-black text-[22px] mt-1" id="bCustomers">0</div></div></div></div>
+    </div>
+
+    <div id="page-promote" class="page">
+      <div class="mt-4 bg-white rounded-[24px] p-6 border border-black/[0.04] shadow-sm"><h3 class="font-extrabold text-[18px]">Promotion</h3><div class="mt-4 grid gap-3">
+        <div class="bg-gradient-to-br from-[#F5F3FF] to-[#EDE9FE] border border-[#7C3AED]/10 rounded-[18px] p-5"><div class="font-extrabold text-[13px] flex items-center gap-2">💎 Real 2% Forever</div><div class="text-[12px] text-[#6B7280] mt-1.5 leading-relaxed">All withdrawals go to real wallet (same email). No duplicate registrations — one email/phone = one provider globally.</div></div>
+        <div class="bg-[#F8F7FF] border border-black/[0.04] rounded-[16px] p-4"><div class="font-bold text-[13px]">How it works</div><div class="text-[12px] text-[#6B7280] mt-1">Onboard a driver, rider, chef or customer. When they complete real orders, you earn 2% forever.</div></div>
+      </div></div>
+    </div>
+
+    <div id="page-profile" class="page">
+      <div class="mt-4 bg-white rounded-[24px] p-6 border border-black/[0.04] shadow-sm max-w-[600px]"><h3 class="font-extrabold text-[18px]">Profile</h3>
+        <div class="mt-5 space-y-4">
+          <div class="flex items-center gap-4 p-4 bg-[#F8F7FF] rounded-[18px] border border-black/[0.03]"><div class="w-14 h-14 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] grid place-items-center text-white font-black text-[20px] shadow" id="profileInitial">S</div><div><div class="font-extrabold" id="profileName">Salesforce</div><div class="text-[12px] text-[#6B7280]" id="profileEmail">email</div><div class="mt-1.5 inline-flex text-[10px] bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-1 rounded-full font-bold text-[#065F46]">✓ Verified • Real</div></div></div>
+          <div class="space-y-2"><label class="text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">Full Name</label><input id="pfName" class="input-beauty w-full h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px]"></div>
+          <div class="space-y-2"><label class="text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">Phone</label><input id="pfPhone" class="input-beauty w-full h-11 rounded-full bg-[#F8F7FF] border border-black/[0.06] px-4 text-[13px]"></div>
+          <div class="space-y-2"><label class="text-[10px] font-bold uppercase tracking-widest text-[#6B7280]">Email</label><input id="pfEmail" disabled class="w-full h-11 rounded-full bg-[#F0F0F0] border border-black/[0.06] px-4 text-[13px] text-[#6B7280]"></div>
+          <button id="btnSaveProfile" class="w-full h-12 rounded-full bg-[#111827] text-white font-bold text-[13px] mt-2 shadow hover:bg-black transition">SAVE PROFILE</button>
+          <div id="pfMsg" class="text-[11px] text-center font-semibold"></div>
+        </div>
+        <div class="mt-6 bg-[#F8F7FF] rounded-[20px] p-5 border border-black/[0.03]"><h4 class="font-extrabold text-[13px]">Wallet History</h4><div class="mt-3 space-y-2" id="walletTxns"><div class="text-[12px] text-[#9CA3AF]">No withdrawals yet</div></div></div>
+      </div>
+    </div>
+
+  </div>`;
+
+  $('btnLogout').onclick=async()=>{ await signOut(auth); };
+  $('btnWithdraw').onclick=withdrawToWallet;
+  $('btnOnboard').onclick=quickOnboard;
+  $('btnSaveProfile').onclick=saveProfile;
+  window._switch=(p)=>switchPage(p);
+  window._openWallet=()=>{ window.open('https://wallet.floot.com.ng','_blank'); };
+  window.filterTeam=(f)=>{ document.querySelectorAll('.teamFilter').forEach(b=>{ b.className = b.dataset.f===f ? 'teamFilter h-8 px-3.5 rounded-full bg-[#111827] text-white text-[11px] font-bold shadow' : 'teamFilter h-8 px-3.5 rounded-full bg-[#F8F7FF] border border-black/[0.06] text-[11px] font-bold hover:bg-white'; }); window._teamFilter=f; renderTeamList(); };
+  loadUserData();
+}
+
+let _teamData=[], _teamFilter='all', _allTxns=[];
+function renderTeamList(){
+  const list=$('teamList'); if(!list) return;
+  let data=_teamData; if(_teamFilter!=='all') data=data.filter(d=>d.memberRole===_teamFilter);
+  if(data.length===0){ list.innerHTML=`<div class="text-[12px] text-[#9CA3AF] p-6 text-center bg-[#F8F7FF] border border-dashed rounded-[16px]">No ${ _teamFilter==='all'?'team':_teamFilter } yet</div>`; return; }
+  list.innerHTML=data.map(m=>{
+    const icons={driver:'🛵', rider:'🏍️', chef:'🍳', customer:'🛒'};
+    return `<div class="flex justify-between items-center p-3.5 rounded-[16px] bg-[#F8F7FF] border border-black/[0.04] card-hover"><div class="flex gap-3 items-center"><div class="w-10 h-10 rounded-full bg-white border shadow-sm grid place-items-center text-[16px]">${icons[m.memberRole]||'👤'}</div><div><div class="font-bold text-[13px]">${m.memberName}</div><div class="text-[11px] text-[#6B7280]">${m.memberRole} • ${m.memberEmail}</div><div class="text-[10px] text-[#9CA3AF]">${m.memberPhone||''}</div></div></div><div class="text-[10px] px-2.5 py-1 rounded-full bg-white border font-bold uppercase tracking-wide">${m.memberRole}</div></div>`;
+  }).join('');
+}
+function renderFlow(){
+  const list=$('flowList'); if(!list) return;
+  const commissions=_allTxns.filter(t=>t.type==='commission');
+  if(commissions.length===0){ list.innerHTML=`<div class="text-[12px] text-[#9CA3AF] p-6 bg-[#F8F7FF] border border-dashed rounded-[16px] text-center leading-relaxed">No real earnings yet<br><b class="text-[#111827]">Jake (driver) NGN3,100 → You NGN62</b> — sample</div>`; return; }
+  list.innerHTML=commissions.map(t=>{
+    const icon = (t.memberRole==='driver' ? '🛵' : t.memberRole==='chef' ? '🍳' : t.memberRole==='rider' ? '🏍️' : '🛒');
+    return `<div class="p-3.5 rounded-[16px] bg-[#F8F7FF] border border-black/[0.04] flex justify-between items-center card-hover">
+      <div class="flex gap-3 items-center"><div class="w-10 h-10 rounded-full bg-white border grid place-items-center text-[18px] shadow-sm">${icon}</div>
+        <div><div class="font-bold text-[13px]">${t.memberName||''} (${t.memberRole||''}) completed real trip</div><div class="text-[11px] text-[#6B7280]">${t.description||''} • ${t.createdAt?.toDate?.()?.toLocaleString()||''}</div><div class="text-[10px] mt-1.5 flex gap-1"><span class="bg-white border px-2.5 py-1 rounded-full font-medium">Trip: ₦${(t.orderAmount||0).toLocaleString()}</span> <span class="bg-[#7C3AED] text-white px-2.5 py-1 rounded-full font-bold">You: ₦${(t.amount||0).toLocaleString()}</span></div></div>
+      </div>
+      <div class="text-right"><div class="font-black text-[#7C3AED] text-[14px]">+₦${(t.amount||0).toLocaleString()}</div></div>
+    </div>`;
+  }).join('');
+}
+
+async function loadUserData(){
+  if(!currentUser) return;
+  const uid=currentUser.uid, email=currentUser.email.toLowerCase(), emailKey=sanitizeEmail(email);
+  if(unsubUser) unsubUser();
+  unsubUser=onSnapshot(doc(db,'users',uid),(snap)=>{ if(snap.exists()){ userData=snap.data(); updateUI(); } else { getDoc(doc(db,'salesforce_agents',emailKey)).then(d=>{ if(d.exists()){ userData=d.data(); updateUI(); } }); } });
+  if(unsubWallet) unsubWallet();
+  unsubWallet=onSnapshot(doc(db,'wallets',emailKey),(snap)=>{ const balEl=$('walletBal'), emailEl=$('walletEmail'); if(snap.exists()){ const w=snap.data(); if(balEl) balEl.textContent=`₦${(w.balance||0).toLocaleString()}`; if(emailEl) emailEl.textContent=w.email||email; } else { if(balEl) balEl.textContent=`₦0`; if(emailEl) emailEl.textContent=email; } });
+  if(unsubTxns) unsubTxns();
+  const qTxn=query(collection(db,'transactions'),where('uid','==',uid));
+  unsubTxns=onSnapshot(qTxn,(snap)=>{
+    _allTxns=snap.docs.map(d=>({id:d.id,...d.data()})); _allTxns.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    renderFlow();
+    const wList=$('walletTxns'); if(wList){ const wTx=_allTxns.filter(t=>t.type==='withdraw_to_wallet'); if(wTx.length===0) wList.innerHTML='<div class="text-[12px] text-[#9CA3AF]">No withdrawals yet</div>'; else wList.innerHTML=wTx.map(t=>`<div class="flex justify-between items-center p-3 rounded-[14px] bg-white border shadow-sm"><div><div class="font-bold text-[13px]">To real wallet • ${t.walletEmail||email}</div><div class="text-[11px] text-[#6B7280]">${t.reference||''}</div></div><div class="font-black">₦${Math.abs(t.amount).toLocaleString()}</div></div>`).join(''); }
+    const commissions=_allTxns.filter(t=>t.type==='commission');
+    const totalTripsEl=$('statTotalTrips'), totalEarnEl=$('statTotalEarn'), statsOrdersEl=$('statsOrders'), statsEarnedEl=$('statsEarned');
+    if(totalTripsEl) totalTripsEl.textContent=commissions.length; if(statsOrdersEl) statsOrdersEl.textContent=commissions.length;
+    const totalComm=commissions.reduce((s,t)=>s+(t.amount||0),0); if(totalEarnEl) totalEarnEl.textContent=`₦${totalComm.toLocaleString()}`; if(statsEarnedEl) statsEarnedEl.textContent=`₦${totalComm.toLocaleString()}`;
+  });
+  if(unsubTeam) unsubTeam();
+  const qTeam=query(collection(db,'salesforce_teams'),where('salesforceEmail','==',email));
+  unsubTeam=onSnapshot(qTeam,(snap)=>{
+    _teamData=snap.docs.map(d=>d.data()); _teamData.sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    const totalEl=$('teamTotal'), provEl=$('providerCount'), custEl=$('customerCount'), teamSizeEl=$('statTeamSize'), statsTeamEl=$('statsTeam');
+    if(totalEl) totalEl.textContent=`${_teamData.length} team`; if(provEl) provEl.textContent=_teamData.filter(t=>['driver','rider','chef'].includes(t.memberRole)).length; if(custEl) custEl.textContent=_teamData.filter(t=>t.memberRole==='customer').length; if(teamSizeEl) teamSizeEl.textContent=_teamData.length; if(statsTeamEl) statsTeamEl.textContent=_teamData.length;
+    const bD=$('bDrivers'), bR=$('bRiders'), bC=$('bChefs'), bCu=$('bCustomers');
+    if(bD) bD.textContent=_teamData.filter(t=>t.memberRole==='driver').length; if(bR) bR.textContent=_teamData.filter(t=>t.memberRole==='rider').length; if(bC) bC.textContent=_teamData.filter(t=>t.memberRole==='chef').length; if(bCu) bCu.textContent=_teamData.filter(t=>t.memberRole==='customer').length;
+    renderTeamList();
+  });
+  function updateUI(){
+    if(!userData) return;
+    const nameEl=$('dashName'), earnEl=$('totalEarned'), pName=$('profileName'), pEmail=$('profileEmail'), pInit=$('profileInitial'), pfName=$('pfName'), pfPhone=$('pfPhone'), pfEmail=$('pfEmail');
+    if(nameEl) nameEl.textContent=userData.name||'Salesforce'; if(earnEl) earnEl.textContent=`₦${(userData.totalEarned||0).toLocaleString()}`; if(pName) pName.textContent=userData.name||'Salesforce'; if(pEmail) pEmail.textContent=userData.email||email; if(pInit) pInit.textContent=(userData.name||'S').charAt(0).toUpperCase(); if(pfName) pfName.value=userData.name||''; if(pfPhone) pfPhone.value=userData.phone||''; if(pfEmail) pfEmail.value=userData.email||email;
+  }
+}
+
+async function quickOnboard(){
+  const btn=$('btnOnboard'), name=$('obName').value.trim(), phone=$('obPhone').value.trim(), role=$('obRole').value, email=$('obEmail').value.trim().toLowerCase(), extra=$('obExtra').value.trim();
+  const msg=$('obMsg'); if(!name||!phone||!email){ msg.textContent='Fill all fields'; msg.className='text-[11px] text-center font-semibold text-red-600'; return; }
+  btn.disabled=true; btn.textContent='CHECKING...'; msg.textContent='Checking duplicates...'; msg.className='text-[11px] text-center font-semibold text-[#6B7280]';
+  try{
+    const salesforceEmail=currentUser.email.toLowerCase(), memberKey=sanitizeEmail(email);
+    const normalizedPhone=phone.replace(/\s+/g,'').toLowerCase();
+    const emailDocs = await Promise.all([
+      getDoc(doc(db,'onboarded_members',memberKey)),
+      getDoc(doc(db,'drivers',memberKey)),
+      getDoc(doc(db,'riders',memberKey)),
+      getDoc(doc(db,'chefs',memberKey)),
+      getDoc(doc(db,'customers',memberKey)),
+      getDoc(doc(db,'salesforce_agents',memberKey)),
+    ]);
+    const labels = ['onboarded_members','drivers','riders','chefs','customers','salesforce_agents'];
+    for(let i=0;i<emailDocs.length;i++){
+      if(emailDocs[i].exists()){
+        throw new Error(`This email (${email}) is already registered as ${labels[i]}. No driver/customer/chef/rider registered twice.`);
+      }
+    }
+    const dupCheck = await new Promise((resolve)=>{
+      const q = query(collection(db,'salesforce_teams'), where('memberKey','==',memberKey));
+      const unsub = onSnapshot(q, snap=>{ unsub(); resolve(snap); }, ()=>resolve({empty:true}));
+    });
+    if(dupCheck && !dupCheck.empty){
+      const ex = dupCheck.docs[0].data();
+      throw new Error(`Duplicate blocked: ${email} already onboarded as ${ex.memberRole} by ${ex.salesforceEmail}.`);
+    }
+    if(_teamData.some(t=> (t.memberPhone||'').replace(/\s+/g,'').toLowerCase()===normalizedPhone)){
+      throw new Error(`Phone ${phone} already used in your team. No duplicate allowed.`);
+    }
+    const phoneChecks = [
+      query(collection(db,'onboarded_members'), where('phone','==',phone)),
+      query(collection(db,'drivers'), where('phone','==',phone)),
+      query(collection(db,'riders'), where('phone','==',phone)),
+      query(collection(db,'chefs'), where('phone','==',phone)),
+      query(collection(db,'customers'), where('phone','==',phone)),
+    ];
+    for(const q of phoneChecks){
+      const snap = await new Promise((resolve)=>{
+        const u = onSnapshot(q, s=>{ u(); resolve(s); }, ()=>resolve({empty:true}));
+      });
+      if(snap && !snap.empty){
+        throw new Error(`Phone ${phone} is already registered. Duplicate not allowed.`);
+      }
+    }
+    msg.textContent='Onboarding...';
+    const teamDoc={ salesforceEmail, salesforceKey:sanitizeEmail(salesforceEmail), memberEmail:email, memberKey, memberRole:role, memberName:name, memberPhone:phone, memberExtra:extra, createdAt: serverTimestamp() };
+    await addDoc(collection(db,'salesforce_teams'),teamDoc);
+    _teamData.unshift({ ...teamDoc, createdAt: { seconds: Date.now()/1000 } }); renderTeamList();
+    const totalEl=$('teamTotal'); if(totalEl) totalEl.textContent=`${_teamData.length} team`;
+    try{
+      await setDoc(doc(db,'onboarded_members',memberKey),{ name, phone, email, role, extra, onboardedByEmail:salesforceEmail, createdAt: serverTimestamp() },{merge:false});
+      const base={ name, email, phone, role, onboardedByEmail:salesforceEmail, bikeNumber:extra, createdAt: serverTimestamp(), emailKey:memberKey };
+      if(role==='driver') await setDoc(doc(db,'drivers',memberKey),{...base,id:memberKey,totalEarnings:0},{merge:false});
+      if(role==='rider') await setDoc(doc(db,'riders',memberKey),{...base,id:memberKey},{merge:false});
+      if(role==='chef') await setDoc(doc(db,'chefs',memberKey),{...base,id:memberKey},{merge:false});
+      if(role==='customer') await setDoc(doc(db,'customers',memberKey),{...base,id:memberKey},{merge:false});
+      await setDoc(doc(db,'wallets',memberKey),{ email, emailKey:memberKey, balance:0, name, createdAt: serverTimestamp(), updatedAt: serverTimestamp() },{merge:true});
+    }catch(e){
+      console.error(e);
+      if((e.message||'').toLowerCase().includes('exists')) throw new Error(`This ${role} already exists (${email}). Duplicate blocked.`);
+      throw e;
+    }
+    msg.textContent=`✓ Real ${role} ${name} onboarded`; msg.className='text-[11px] text-center font-semibold text-green-600'; toast(`Real ${role} onboarded`);
+    $('obName').value=''; $('obPhone').value=''; $('obEmail').value=''; $('obExtra').value='';
+  }catch(e){
+    const m=e.message||'Error';
+    msg.textContent=m; msg.className='text-[11px] text-center font-semibold text-red-600'; toast(m,'err');
+  }
+  finally{ btn.disabled=false; btn.textContent='ONBOARD REAL PROVIDER'; }
+}
+
+async function withdrawToWallet(){
+  if(!currentUser||!userData){ toast('No account','err'); return; }
+  const email=currentUser.email.toLowerCase(), emailKey=sanitizeEmail(email); const amount=Number(userData.totalEarned||0);
+  if(amount<=0){ toast('No real earnings','err'); return; }
+  const btn=$('btnWithdraw'); btn.textContent='PROCESSING...'; btn.disabled=true;
+  try{
+    const walletRef=doc(db,'wallets',emailKey); const snap=await getDoc(walletRef);
+    if(!snap.exists()) await setDoc(walletRef,{ email, emailKey, uid: currentUser.uid, balance:0, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    await addDoc(collection(db,'transactions'),{ uid: currentUser.uid, email, emailKey, walletEmail: email, amount: -amount, type:'withdraw_to_wallet', description:`Withdraw to real wallet`, reference:'WTH_'+Date.now(), status:'success', createdAt: serverTimestamp() });
+    await updateDoc(walletRef,{ balance: increment(amount), updatedAt: serverTimestamp(), uid: currentUser.uid, email });
+    await updateDoc(doc(db,'users',currentUser.uid),{ totalEarned: 0 });
+    try{ await updateDoc(doc(db,'salesforce_agents',emailKey),{ totalEarned: 0 }); }catch{}
+    toast(`✓ ₦${amount.toLocaleString()} moved to real wallet`);
+  }catch(e){ toast(e.message,'err'); }finally{ btn.textContent='WITHDRAW TO REAL WALLET'; btn.disabled=false; }
+}
+
+async function saveProfile(){
+  const name=$('pfName').value.trim(), phone=$('pfPhone').value.trim(), msg=$('pfMsg');
+  if(!name||!phone){ msg.textContent='Fill name & phone'; msg.className='text-[11px] text-center font-semibold text-red-600'; return; }
+  msg.textContent='Saving...'; msg.className='text-[11px] text-center font-semibold text-[#6B7280]';
+  try{ await updateDoc(doc(db,'users',currentUser.uid),{ name, phone }); await updateDoc(doc(db,'salesforce_agents',sanitizeEmail(currentUser.email.toLowerCase())),{ name, phone }); try{ await updateProfile(currentUser,{ displayName:name }); }catch{} msg.textContent='✓ Saved'; msg.className='text-[11px] text-center font-semibold text-green-600'; toast('Profile saved'); }catch(e){ msg.textContent=e.message; }
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  if(user){ try{ await user.reload(); }catch{} currentUser=user; if(!user.emailVerified){ renderVerifyRequired(user); return; } renderDashboard(); }else{ currentUser=null; userData=null; if(unsubUser) unsubUser(); if(unsubTxns) unsubTxns(); if(unsubWallet) unsubWallet(); if(unsubTeam) unsubTeam(); renderAuth(); }
+});
+renderAuth();
+</script>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
+</html>
